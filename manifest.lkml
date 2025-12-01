@@ -37,7 +37,7 @@ visualization: {
 
 visualization: {
   id: "retail-store-shelf-map-viz"
-  label: "店舗マップ・在庫可視化"
+  label: "cyberpunk-store_shelf_map"
   file: "store_shelf_map.js"
 
   # 外部ライブラリとしてD3.jsを読み込みます
