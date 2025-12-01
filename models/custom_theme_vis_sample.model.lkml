@@ -9,7 +9,7 @@ datagroup: retail_sample_default_datagroup {
 }
 
 persist_with: retail_sample_default_datagroup
-
+label: "cyberpunk model"
 explore: store_inventory_data {
   label: "product_locations"
   join:  sales_data{
