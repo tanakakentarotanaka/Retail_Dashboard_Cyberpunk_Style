@@ -1,4 +1,5 @@
 connection: "tanaka_connect"
+label: "cutom_viz_sample_cyberpunk"
 
 # include all the views
 include: "/views/**/*.view.lkml"
