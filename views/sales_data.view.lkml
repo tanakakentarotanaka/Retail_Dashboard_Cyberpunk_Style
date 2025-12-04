@@ -116,16 +116,7 @@ view: sales_data {
     datatype: date
     sql: ${TABLE}.order_date ;;
   }
-  dimension: order_month_name_label {
-    group_label: "Order"
-    label: "Order Month Name" # チャートに表示される名前
 
-    # 元のmonth_nameを参照します（これでソート順は維持されます）
-    sql: ${order_month_name} ;;
-
-    # Liquidを使って "|" で文字を区切り、最初の部分（月名）だけを表示します
-    html: {{ value | split: '|' | first }} ;;
-  }
   dimension: created_month_name_en {
     label: "Order Month (En)"
     type: string
