@@ -124,8 +124,6 @@ view: sales_data {
     # %B = January, February (フルネーム)
     # %b = Jan, Feb (短縮形)
     sql: FORMAT_DATE('%b', ${TABLE}.order_date) ;;
-
-    # 【重要】ここでソート順を数値フィールドに指定する
     order_by_field: order_month
   }
 
