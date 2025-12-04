@@ -118,14 +118,15 @@ view: sales_data {
   }
 
   dimension: created_month_name_en {
-    label: "Order Month (En)"
-    type: string
-    # BigQueryのフォーマット関数を使用
-    # %B = January, February (フルネーム)
-    # %b = Jan, Feb (短縮形)
-    sql: FORMAT_DATE('%b', ${TABLE}.order_date) ;;
-    order_by_field: order_month
-  }
+        label: "Order Month (En)"
+        type: string
+        # BigQueryのフォーマット関数を使用
+        # %B = January, February (フルネーム)
+        # %b = Jan, Feb (短縮形)
+        sql: FORMAT_DATE('%b', ${TABLE}.order_date) ;;
+        order_by_field: order_month
+      }
+
 
   dimension: order_id {
     primary_key: yes
