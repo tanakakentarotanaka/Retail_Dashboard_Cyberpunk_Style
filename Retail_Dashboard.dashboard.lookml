@@ -32,7 +32,7 @@
       \ none;\n      color: #94A3B8;\n      padding: 10px 24px;\n      border-radius:\
       \ 8px 8px 0 0;\n      font-weight: 500;\n      border-bottom: 3px solid transparent;\n\
       \      transition: color 0.2s ease;\n    \">\n      Guide\n    </a>\n\n    <a\
-      \ href=\"https://docs.google.com/presentation/d/1YAJ4bQ30MrCJfbdooZKpSphX6u0LWxuXbY3plXH2-Fg/edit?resourcekey=0-rm058HzNCQ4MDLs28WNfcg&slide=id.g3b33eee606e_0_505#slide=id.g3b33eee606e_0_505\"\
+      \ href=\"https://docs.google.com/presentation/d/1d8VosV0fCYPAbIFJ3wwGo_BBgijWPIkKglBR_uhn10c/edit?usp=sharing\"\
       \ target=\"_blank\" rel=\"noopener noreferrer\" style=\"\n      text-decoration:\
       \ none;\n      color: #94A3B8;\n      padding: 10px 24px;\n      border-radius:\
       \ 8px 8px 0 0;\n      font-weight: 500;\n      border-bottom: 3px solid transparent;\n\
