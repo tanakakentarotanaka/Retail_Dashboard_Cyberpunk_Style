@@ -261,6 +261,14 @@ looker.plugins.visualizations.add({
       section: 'Design',
       order: 19
     },
+    // 【追加】検索ボックスの表示・非表示設定
+    show_search: {
+      label: "Show Search Box",
+      type: "boolean",
+      default: true,
+      section: 'Design',
+      order: 20
+    },
     search_btn_pos: {
       label: "Button Position",
       type: "string",
@@ -271,7 +279,7 @@ looker.plugins.visualizations.add({
       ],
       default: "left",
       section: 'Design',
-      order: 20
+      order: 21
     },
     // Search Box
     search_box_border_color: {
@@ -281,7 +289,7 @@ looker.plugins.visualizations.add({
         display_size: 'third',
         default: "#cccccc",
         section: 'Design',
-        order: 21
+        order: 22
     },
     search_box_border_width: {
         label: "Search Border Width (px)",
@@ -289,7 +297,7 @@ looker.plugins.visualizations.add({
         display_size: 'third',
         default: 1,
         section: 'Design',
-        order: 22
+        order: 23
     },
     search_box_radius: {
         label: "Search Radius (px)",
@@ -297,7 +305,7 @@ looker.plugins.visualizations.add({
         display_size: 'third',
         default: 4,
         section: 'Design',
-        order: 23
+        order: 24
     },
     search_shadow_depth: {
         label: "Search Light/Shadow",
@@ -311,7 +319,7 @@ looker.plugins.visualizations.add({
         ],
         default: "none",
         section: 'Design',
-        order: 24
+        order: 25
     },
     search_box_bg: {
       label: "Search Bg",
@@ -320,7 +328,7 @@ looker.plugins.visualizations.add({
       display_size: 'third',
       default: "#ffffff",
       section: 'Design',
-      order: 25
+      order: 26
     },
     search_box_opacity: {
       label: "Search Bg Opacity (%)",
@@ -329,7 +337,7 @@ looker.plugins.visualizations.add({
       default: 100,
       min: 0, max: 100,
       section: 'Design',
-      order: 26
+      order: 27
     },
     search_text_color: {
       label: "Search Text",
@@ -338,7 +346,7 @@ looker.plugins.visualizations.add({
       display_size: 'third',
       default: "#333333",
       section: 'Design',
-      order: 27
+      order: 28
     },
 
     // Button Settings
@@ -349,7 +357,7 @@ looker.plugins.visualizations.add({
       display_size: 'third',
       default: "#f8f9fa",
       section: 'Design',
-      order: 28
+      order: 29
     },
     search_btn_bg_opacity: {
       label: "Btn Opacity (%)",
@@ -358,7 +366,7 @@ looker.plugins.visualizations.add({
       default: 100,
       min: 0, max: 100,
       section: 'Design',
-      order: 29
+      order: 30
     },
     search_btn_text_color: {
       label: "Btn Text",
@@ -367,7 +375,7 @@ looker.plugins.visualizations.add({
       display_size: 'third',
       default: "#555555",
       section: 'Design',
-      order: 30
+      order: 31
     },
     btn_border_color: {
         label: "Btn Border Color",
@@ -376,7 +384,7 @@ looker.plugins.visualizations.add({
         display_size: 'third',
         default: "#cccccc",
         section: 'Design',
-        order: 31
+        order: 32
     },
     btn_border_width: {
         label: "Btn Border Width (px)",
@@ -384,7 +392,7 @@ looker.plugins.visualizations.add({
         display_size: 'third',
         default: 1,
         section: 'Design',
-        order: 32
+        order: 33
     },
     btn_shadow_depth: {
         label: "Btn Light/Shadow",
@@ -398,7 +406,7 @@ looker.plugins.visualizations.add({
         ],
         default: "none",
         section: 'Design',
-        order: 33
+        order: 34
     },
 
     // Search Menu Settings
@@ -409,7 +417,7 @@ looker.plugins.visualizations.add({
         display_size: 'third',
         default: "#ffffff",
         section: 'Design',
-        order: 34
+        order: 35
     },
     search_menu_bg_opacity: {
         label: "Menu Opacity (%)",
@@ -418,7 +426,7 @@ looker.plugins.visualizations.add({
         default: 100,
         min: 0, max: 100,
         section: 'Design',
-        order: 35
+        order: 36
     },
     search_menu_text_color: {
         label: "Menu Text",
@@ -427,7 +435,7 @@ looker.plugins.visualizations.add({
         display_size: 'third',
         default: "#333333",
         section: 'Design',
-        order: 36
+        order: 37
     },
 
 
@@ -1178,6 +1186,8 @@ looker.plugins.visualizations.add({
       const cMin = config.color_min || "#f8696b";
       const cMid = config.color_mid || "#ffeb84";
       const cMax = config.color_max || "#63be7b";
+      // 【追加】検索ボックスの表示設定取得
+      const showSearch = config.show_search !== false;
 
       let minVal = Infinity; let maxVal = -Infinity;
       const uniqueValuesMap = new Map();
@@ -1424,7 +1434,10 @@ looker.plugins.visualizations.add({
       searchInput.onclick = (e) => e.stopPropagation();
       searchInput.oninput = applyFilter;
 
-      wrapper.appendChild(searchArea);
+      // 【追加】設定がOnの場合のみ検索エリアを表示
+      if (showSearch) {
+        wrapper.appendChild(searchArea);
+      }
       wrapper.appendChild(scrollArea);
       applyFilter();
 
