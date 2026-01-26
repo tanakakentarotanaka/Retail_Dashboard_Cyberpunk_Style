@@ -234,14 +234,25 @@ looker.plugins.visualizations.add({
       section: 'Design',
       order: 10
     },
-    header_font_size: {
-      label: "Font Size",
+    // 【変更】英語用フォントサイズ (Zen Dotsは太いので少し小さめでも目立つ)
+    header_font_size_en: {
+      label: "Title Font Size (English / Number)",
       type: "string",
       display_size: 'third',
       default: "14",
       placeholder: "14",
       section: 'Design',
       order: 11
+    },
+    // 【追加】日本語用フォントサイズ (はんなり明朝は細いので大きくする)
+    header_font_size_jp: {
+      label: "Title Font Size (Japanese)",
+      type: "string",
+      display_size: 'third',
+      default: "18",
+      placeholder: "18",
+      section: 'Design',
+      order: 12
     },
     header_text_color: {
       label: "Text Color",
@@ -250,16 +261,16 @@ looker.plugins.visualizations.add({
       display_size: 'third',
       default: "#444444",
       section: 'Design',
-      order: 12
+      order: 13
     },
-    // 【追加】タイトル太字設定
+    // タイトル太字設定
     header_font_bold: {
       label: "Bold Title",
       type: "boolean",
       display_size: 'third',
       default: false,
       section: 'Design',
-      order: 13
+      order: 14
     },
 
     // --- Search Box Settings ---
@@ -659,9 +670,10 @@ looker.plugins.visualizations.add({
           --bg-repeat: no-repeat;
           --bg-position: center center;
 
-          --header-font-size: 14px;
           --header-text-color: #444;
-          /* ▼▼▼ タイトルフォント太さ変数 ▼▼▼ */
+          /* ▼▼▼ タイトルフォント変数 (En/Jp分離) ▼▼▼ */
+          --header-font-size-en: 14px;
+          --header-font-size-jp: 18px;
           --header-font-weight: normal;
 
           /* Search Box Styles */
@@ -754,10 +766,9 @@ looker.plugins.visualizations.add({
         }
 
         .group-label {
-          /* ▼▼▼ フォントウェイトを変数で制御 ▼▼▼ */
           font-weight: var(--header-font-weight);
           margin-bottom: 6px;
-          font-size: var(--header-font-size);
+          /* font-size: var(--header-font-size); <--- 個別指定するので親は削除/無視 */
           color: var(--header-text-color);
           flex-shrink: 0;
           line-height: 1.4;
@@ -1060,7 +1071,9 @@ looker.plugins.visualizations.add({
     setVar('--bg-repeat', config.bg_image_repeat || 'no-repeat');
     setVar('--bg-position', config.bg_image_position || 'center center');
 
-    setVar('--header-font-size', fixPx(config.header_font_size, '14px'));
+    // 【修正】フォントサイズ (En / Jp) をそれぞれCSS変数にセット
+    setVar('--header-font-size-en', fixPx(config.header_font_size_en, '14px'));
+    setVar('--header-font-size-jp', fixPx(config.header_font_size_jp, '18px'));
     setVar('--header-text-color', config.header_text_color || '#444');
 
     // 【追加】タイトル太字設定反映
@@ -1159,6 +1172,22 @@ looker.plugins.visualizations.add({
       return formattedNum + pattern;
     };
 
+    // --- Title Formatting Logic ---
+    // 英数記号(Zen Dots用)と、それ以外(日本語用)を正規表現で分離してSpanで囲む
+    const formatTitleHTML = (text) => {
+        if (!text) return "";
+        // ASCII範囲(英数字記号スペース)をキャプチャ、それ以外(日本語等)をキャプチャ
+        return text.replace(/([a-zA-Z0-9\s!-/:-@[-`{-~]+)|([^a-zA-Z0-9\s!-/:-@[-`{-~]+)/g, (match, en, jp) => {
+            if (en) {
+                return `<span style="font-size: var(--header-font-size-en);">${en}</span>`;
+            }
+            if (jp) {
+                return `<span style="font-size: var(--header-font-size-jp);">${jp}</span>`;
+            }
+            return match;
+        });
+    };
+
     try {
       if (!root) { if (done) done(); return; }
 
@@ -1204,7 +1233,6 @@ looker.plugins.visualizations.add({
       const cMin = config.color_min || "#f8696b";
       const cMid = config.color_mid || "#ffeb84";
       const cMax = config.color_max || "#63be7b";
-      // 【追加】検索ボックスの表示設定取得
       const showSearch = config.show_search !== false;
 
       let minVal = Infinity; let maxVal = -Infinity;
@@ -1244,7 +1272,9 @@ looker.plugins.visualizations.add({
 
       const labelDiv = document.createElement("div");
       labelDiv.className = "group-label";
-      labelDiv.innerText = config.title_override || dimField.label_short || dimField.label;
+      // 【変更】タイトル文字列をHTML形式で流し込み(サイズ調整のため)
+      const rawTitle = config.title_override || dimField.label_short || dimField.label;
+      labelDiv.innerHTML = formatTitleHTML(rawTitle);
       wrapper.appendChild(labelDiv);
 
       const searchArea = document.createElement("div");
