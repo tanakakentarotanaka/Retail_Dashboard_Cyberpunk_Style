@@ -1,11 +1,18 @@
-/**
- * Cyberpunk KPI Card Visualization (Hannari Mincho / Japanese Style Version)
- * Features: HUD style layout, Neon glow, Count-up animation
- */
-
 looker.plugins.visualizations.add({
   // --- 1. 設定項目 ---
   options: {
+    fontStyle: {
+      type: "string",
+      label: "フォントスタイル (Language)",
+      display: "select",
+      values: [
+        { "Cyberpunk (Zen Dots)": "zen" },
+        { "はんなり明朝 (Japanese)": "hannari" }
+      ],
+      default: "zen",
+      section: "Style",
+      order: 1 // 設定メニューの一番上に表示
+    },
     mainColor: {
       type: "string",
       label: "アクセントカラー(枠線・数値)",
@@ -37,32 +44,33 @@ looker.plugins.visualizations.add({
 
   // --- 2. 初期化処理 ---
   create: function(element, config) {
-    // ▼▼▼ 追加: フォント読み込み用のStyleタグを注入 ▼▼▼
+    const zenDotsUrl = "https://cdn.jsdelivr.net/gh/tanakakentarotanaka/240322_kentarotanaka@master/zen-dots-v14-latin-regular%20(2).woff2";
 
-    // 【注記】「はんなり明朝」はWebフォントとしてCDN配信されていないことが多いため、
-    // Google Fontsにある中で最も雰囲気が近い「Hina Mincho (ひな明朝)」を使用しています。
-    // もし「はんなり明朝」のWOFF2ファイルのURLをお持ちの場合は、前回のコードのように
-    // @font-face { src: url('あなたのURL'); ... } で指定してください。
-
+    // スタイルタグを作成してフォントを定義
+    // ▼▼▼ 変更: はんなり明朝(@import) と Zen Dots(@font-face) 両方を定義 ▼▼▼
     const style = document.createElement('style');
     style.innerHTML = `
-      @import url('https://fonts.googleapis.com/css2?family=Hina+Mincho&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Hannari+Mincho&display=swap');
+
+      @font-face {
+        font-family: 'Zen Dots';
+        src: url('${zenDotsUrl}') format('woff2');
+        font-display: swap;
+      }
     `;
     element.appendChild(style);
-    // ▲▲▲ 追加終わり ▲▲▲
 
     // コンテナのスタイル設定
-    // ▼▼▼ 変更: フォントをHina Minchoに変更 ▼▼▼
-    element.style.fontFamily = "'Hina Mincho', 'Hannari Mincho', serif";
-
-    element.style.backgroundColor = "#1a1a2e"; // ダッシュボード共通の背景色
+    element.style.backgroundColor = "#1a1a2e";
     element.style.color = "#ffffff";
     element.style.overflow = "hidden";
     element.style.height = "100%";
     element.style.borderRadius = "8px";
+
+    // 初期化時に中身をクリア
     element.innerHTML = "";
 
-    // StyleタグがinnerHTML=""で消えないように再度追加（念の為）
+    // Styleタグを再注入（innerHTMLクリアで消えるため）
     element.appendChild(style);
 
     this.container = element.appendChild(document.createElement("div"));
@@ -110,18 +118,27 @@ looker.plugins.visualizations.add({
       return;
     }
 
-    // 設定値
+    // --- 設定値の取得 ---
     const mainColor = config.mainColor || "#00ffff";
     const glow = config.glowStrength || 10;
     const labelText = config.labelOverride || queryResponse.fields.measures[0].label_short || queryResponse.fields.measures[0].label;
 
+    // ▼▼▼ 追加: フォント選択ロジック ▼▼▼
+    const fontMode = config.fontStyle || "zen";
+    // はんなり明朝が選ばれたら明朝体、それ以外（デフォルト）はZen Dots
+    const currentFontFamily = (fontMode === "hannari")
+      ? "'Hannari Mincho', 'Hiragino Mincho ProN', serif"
+      : "'Zen Dots', 'Courier New', monospace";
+
+    // コンテナ自体のフォントも更新
+    element.style.fontFamily = currentFontFamily;
+
+
     // データ取得
-    // 1つ目のメジャー：メインの数値
     const mainMeasureName = queryResponse.fields.measures[0].name;
     const mainValueRaw = data[0][mainMeasureName].value;
     const mainValueFormatted = LookerCharts.Utils.textForCell(data[0][mainMeasureName]);
 
-    // 2つ目のメジャー（あれば）：サブ情報として表示
     let subValueText = "";
     if (queryResponse.fields.measures.length > 1) {
       const subMeasureName = queryResponse.fields.measures[1].name;
@@ -143,39 +160,31 @@ looker.plugins.visualizations.add({
     const g = this.svg.append("g").attr("class", "content");
 
     // --- 背景デザイン ---
-
-    // 1. グリッド背景
     g.append("rect")
       .attr("width", width)
       .attr("height", height)
       .attr("fill", "url(#grid-pattern)");
 
-    // 2. HUDフレーム（四隅のブラケット）
+    // HUDフレーム
     const bracketSize = 15;
     const padding = 10;
     const strokeWidth = 2;
-
-    // 左上 (0度), 右上 (90度), 右下 (180度), 左下 (270度)
-    // 回転ロジックは単純化のため座標計算で実装
     const w = width - padding * 2;
     const h = height - padding * 2;
     const x = padding;
     const y = padding;
 
-    // 左上
+    // 四隅の描画
     g.append("path").attr("d", `M ${x} ${y+bracketSize} L ${x} ${y} L ${x+bracketSize} ${y}`)
       .attr("stroke", mainColor).attr("stroke-width", strokeWidth).attr("fill", "none").style("filter", "url(#kpi-glow)");
-    // 右上
     g.append("path").attr("d", `M ${width-x-bracketSize} ${y} L ${width-x} ${y} L ${width-x} ${y+bracketSize}`)
       .attr("stroke", mainColor).attr("stroke-width", strokeWidth).attr("fill", "none").style("filter", "url(#kpi-glow)");
-    // 右下
     g.append("path").attr("d", `M ${width-x} ${height-y-bracketSize} L ${width-x} ${height-y} L ${width-x-bracketSize} ${height-y}`)
       .attr("stroke", mainColor).attr("stroke-width", strokeWidth).attr("fill", "none").style("filter", "url(#kpi-glow)");
-    // 左下
     g.append("path").attr("d", `M ${x+bracketSize} ${height-y} L ${x} ${height-y} L ${x} ${height-y-bracketSize}`)
       .attr("stroke", mainColor).attr("stroke-width", strokeWidth).attr("fill", "none").style("filter", "url(#kpi-glow)");
 
-    // 装飾ライン（上下中央に薄い線）
+    // 装飾ライン
     g.append("line")
       .attr("x1", width * 0.3).attr("y1", padding)
       .attr("x2", width * 0.7).attr("y2", padding)
@@ -196,49 +205,44 @@ looker.plugins.visualizations.add({
       .style("fill", mainColor)
       .style("font-size", "14px")
       .style("letter-spacing", "2px")
-      // .style("text-transform", "uppercase") // ▼▼▼ 削除: 日本語では不要なため
+      .style("text-transform", "uppercase")
       .style("opacity", 0.8)
-      // ▼▼▼ 変更: Hina Minchoを指定 ▼▼▼
-      .style("font-family", "'Hina Mincho', serif")
-      .style("font-weight", "400") // 明朝体なので細めに設定
+      // ▼▼▼ 変更: 変数化したフォントを適用 ▼▼▼
+      .style("font-family", currentFontFamily)
       .style("filter", "url(#kpi-glow)")
       .text(labelText);
 
     // 2. メイン数値（中央）
-    // カウントアップアニメーション用のオブジェクトを作成
     const textObj = g.append("text")
       .attr("x", width / 2)
       .attr("y", height * 0.6)
       .attr("text-anchor", "middle")
-      .attr("dy", "0.2em") // 垂直方向の微調整
+      .attr("dy", "0.2em")
       .style("fill", "#ffffff")
-      .style("font-size", Math.min(width, height) * 0.25 + "px") // コンテナサイズに応じて可変
-      // ▼▼▼ 変更: 明朝体のため太字(bold)を外して上品にするか、あるいはそのままにするか。今回は視認性のためnormalへ変更 ▼▼▼
-      .style("font-weight", "normal")
-      // ▼▼▼ 変更: Hina Minchoへ ▼▼▼
-      .style("font-family", "'Hina Mincho', serif")
+      .style("font-size", Math.min(width, height) * 0.25 + "px")
+      .style("font-weight", "bold")
+      // ▼▼▼ 変更: 変数化したフォントを適用 ▼▼▼
+      .style("font-family", currentFontFamily)
       .style("filter", "url(#kpi-glow)")
-      .text(0); // 初期値0
+      .text(0);
 
-    // 数値のアニメーション (D3 transition)
+    // 数値のアニメーション
     textObj.transition()
       .duration(1000)
       .tween("text", function() {
         const that = d3.select(this);
         const i = d3.interpolateNumber(0, mainValueRaw);
         return function(t) {
-          // 最終フレームで mainValueFormatted に置き換える
           if (t === 1) {
              that.text(mainValueFormatted);
           } else {
-             // 簡易フォーマット
              const val = i(t);
              that.text(Math.floor(val).toLocaleString());
           }
         };
       });
 
-    // 3. サブ情報（下部・あれば表示）
+    // 3. サブ情報（下部）
     if (subValueText) {
       g.append("text")
         .attr("x", width / 2)
@@ -247,8 +251,8 @@ looker.plugins.visualizations.add({
         .style("fill", "#cccccc")
         .style("font-size", "12px")
         .style("letter-spacing", "1px")
-         // ▼▼▼ Hina Minchoを適用 ▼▼▼
-        .style("font-family", "'Hina Mincho', serif")
+        // ▼▼▼ 変更: 変数化したフォントを適用 ▼▼▼
+        .style("font-family", currentFontFamily)
         .text(subValueText);
     }
 
