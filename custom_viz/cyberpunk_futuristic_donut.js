@@ -1,6 +1,6 @@
 /**
- * Futuristic Donut Chart Visualization v15
- * (Added Threshold Logic: Hide small lines, Show on Hover)
+ * Futuristic Donut Chart Visualization v16
+ * (Fix: ID Mismatch bug, ensuring Leader Lines & Tooltips appear correctly)
  */
 
 looker.plugins.visualizations.add({
@@ -223,12 +223,14 @@ looker.plugins.visualizations.add({
       .style("font-size", "12px")
       .style("box-shadow", "0 0 15px rgba(255, 255, 255, 0.5)")
       .style("pointer-events", "none")
-      .style("z-index", "10");
+      .style("z-index", "1000"); // z-indexを上げて最前面に
   },
 
   // --- 3. 描画処理 ---
   updateAsync: function(data, element, config, queryResponse, details, done) {
     this.clearErrors();
+    const self = this; // thisコンテキストを保持
+
     if (typeof d3 === "undefined") {
       this.chartContainer.innerHTML = '<div style="padding:20px; color:#00ffff;">Loading...</div>';
       done(); return;
@@ -338,26 +340,25 @@ looker.plugins.visualizations.add({
 
         item.onmouseenter = () => {
           item.style.borderLeft = `2px solid ${color}`;
-          this.mainGroup.selectAll(".data-arc path").style("opacity", 0.3);
-          const arcPath = this.mainGroup.select(`#arc-path-${i}`);
+          self.mainGroup.selectAll(".data-arc path").style("opacity", 0.3);
+          // IDは元データのインデックス(i)を使用
+          const arcPath = self.mainGroup.select(`#arc-path-${i}`);
           arcPath.style("opacity", 1).style("filter", "url(#futuristic-glow)").attr("stroke", "#fff").attr("stroke-width", 2);
 
-          // ホバー時は強制的に引出線を表示
           if (showLeaderLines) {
-             this.mainGroup.select(`#leader-line-${i}`).transition().duration(200).style("opacity", 1);
+             self.mainGroup.select(`#leader-line-${i}`).transition().duration(200).style("opacity", 1);
           }
         };
         item.onmouseleave = () => {
           item.style.borderLeft = "2px solid transparent";
-          this.mainGroup.selectAll(".data-arc path").style("opacity", 1).style("filter", "url(#futuristic-glow)").attr("stroke", "none");
+          self.mainGroup.selectAll(".data-arc path").style("opacity", 1).style("filter", "url(#futuristic-glow)").attr("stroke", "none");
 
-          // ホバー解除時はしきい値チェックに戻す
           if (showLeaderLines) {
              const threshold = config.leaderLineThreshold != null ? config.leaderLineThreshold : 3.0;
              const val = d[measures[0].name].value;
              const pct = (val / totalValue * 100);
              if (pct < threshold) {
-                this.mainGroup.select(`#leader-line-${i}`).transition().duration(200).style("opacity", 0);
+                self.mainGroup.select(`#leader-line-${i}`).transition().duration(200).style("opacity", 0);
              }
           }
         };
@@ -385,6 +386,8 @@ looker.plugins.visualizations.add({
     ];
 
     const pie = d3.pie().value(d => d[measures[0].name].value).sort(null).padAngle(0.02);
+    // d3.pieはデータをソートするが、各データオブジェクトに元のindex (d.index) を保持している
+
     const mainArc = d3.arc().innerRadius(mainInnerRadius).outerRadius(radius);
     const mainArcHover = d3.arc().innerRadius(mainInnerRadius - 5).outerRadius(radius + 5);
 
@@ -393,9 +396,10 @@ looker.plugins.visualizations.add({
       .enter().append("g").attr("class", "data-arc");
 
     arcs.append("path")
-      .attr("id", (d, i) => `arc-path-${i}`)
+      // 重要: IDに d.index (元データのインデックス) を使用する
+      .attr("id", d => `arc-path-${d.index}`)
       .attr("d", mainArc)
-      .attr("fill", (d, i) => colorScale(i))
+      .attr("fill", d => colorScale(d.index)) // 色も元データindex基準
       .style("filter", "url(#futuristic-glow)")
       .transition().duration(1000)
       .attrTween("d", d => {
@@ -465,16 +469,16 @@ looker.plugins.visualizations.add({
       const outerRadius = radius + 35;
       const labelArc = d3.arc().innerRadius(outerRadius).outerRadius(outerRadius);
 
-      // 全データで作成（フィルタリングせず、Opacityで制御）
       const lines = leaderLineLayer.selectAll(".leader-lines")
         .data(pie(data))
         .enter().append("g")
-        .attr("id", (d, i) => `leader-line-${i}`)
+        // 重要: IDに d.index (元データのインデックス) を使用する
+        .attr("id", d => `leader-line-${d.index}`)
         .style("opacity", d => {
            const pct = (d.data[measures[0].name].value / lineTotal * 100);
            return pct >= leaderThreshold ? 1 : 0;
         })
-        .style("pointer-events", "none"); // 線自体はマウスイベントを透過
+        .style("pointer-events", "none");
 
       // 1. ノード
       lines.append("circle")
@@ -499,7 +503,7 @@ looker.plugins.visualizations.add({
         .style("stroke-opacity", "0.6")
         .style("stroke-dasharray", "2,2");
 
-      // 3. テキスト (Shippori Mincho)
+      // 3. テキスト
       lines.append("text")
         .attr("transform", d => {
           const pos = labelArc.centroid(d);
@@ -523,10 +527,8 @@ looker.plugins.visualizations.add({
            const formattedVal = LookerCharts.Utils.textForCell(d.data[measures[0].name]);
            const pct = (val / lineTotal * 100).toFixed(1) + "%";
 
-           // ディメンション名
            el.append("tspan").text(dimText).attr("x", 0).attr("dy", "-0.6em");
 
-           // 値・割合
            let subText = "";
            if (contentMode === "percent") {
              subText = pct;
@@ -560,9 +562,9 @@ looker.plugins.visualizations.add({
       tooltip.style("visibility", "visible").style("border-color", color).style("box-shadow", `0 0 15px ${color}`)
         .html(`<div style="font-weight:bold; color:${color};">${dimVal}</div><div style="color:#fff;">${measVal}</div>`);
 
-      // 3. 引出線を表示 (しきい値以下でも表示)
+      // 3. 引出線を表示 (IDは d.index で参照)
       if (showLeaderLines) {
-        d3.select(`#leader-line-${d.index}`).transition().duration(200).style("opacity", 1);
+        self.mainGroup.select(`#leader-line-${d.index}`).transition().duration(200).style("opacity", 1);
       }
 
     }).on("mousemove", e => tooltip.style("top", (e.pageY-15)+"px").style("left", (e.pageX+15)+"px"))
@@ -573,12 +575,12 @@ looker.plugins.visualizations.add({
       // 2. ツールチップ非表示
       tooltip.style("visibility", "hidden");
 
-      // 3. 引出線を元に戻す (しきい値以下の場合は非表示へ)
+      // 3. 引出線を元に戻す (しきい値判定)
       if (showLeaderLines) {
          const val = d.data[measures[0].name].value;
          const pct = (val / totalValue * 100);
          if (pct < leaderThreshold) {
-           d3.select(`#leader-line-${d.index}`).transition().duration(200).style("opacity", 0);
+           self.mainGroup.select(`#leader-line-${d.index}`).transition().duration(200).style("opacity", 0);
          }
       }
     });
