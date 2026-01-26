@@ -16,26 +16,46 @@ looker.plugins.visualizations.add({
       max: 30,
       section: "Style"
     },
-    // ▼▼▼ 追加: フォントサイズ設定 ▼▼▼
+    // --- ラベル設定 ---
     labelFontSize: {
       type: "number",
-      label: "上部ラベルのサイズ (px)",
+      label: "ラベル: サイズ (px)",
       default: 14,
       section: "Style"
     },
-    mainFontSize: {
-      type: "number",
-      label: "メイン数値のサイズ (0で自動)",
-      default: 0, // 0の場合はコンテナサイズに応じて自動計算
+    labelBold: {
+      type: "boolean",
+      label: "ラベル: 太字にする",
+      default: false,
       section: "Style"
     },
+    // --- メイン数値設定 ---
+    mainFontSize: {
+      type: "number",
+      label: "数値: サイズ (0で自動)",
+      default: 0,
+      section: "Style"
+    },
+    mainBold: {
+      type: "boolean",
+      label: "数値: 太字にする",
+      default: true,
+      section: "Style"
+    },
+    // --- サブ情報設定 ---
     subFontSize: {
       type: "number",
-      label: "下部サブ情報のサイズ (px)",
+      label: "サブ情報: サイズ (px)",
       default: 12,
       section: "Style"
     },
-    // ▲▲▲ 追加終わり ▲▲▲
+    subBold: {
+      type: "boolean",
+      label: "サブ情報: 太字にする",
+      default: false,
+      section: "Style"
+    },
+    // --- コンテンツ設定 ---
     labelOverride: {
       type: "string",
       label: "ラベル名の上書き (空欄で自動)",
@@ -68,7 +88,7 @@ looker.plugins.visualizations.add({
     `;
     element.appendChild(style);
 
-    // 複合フォント定義 (Zen Dots優先、無ければはんなり明朝)
+    // 複合フォント定義
     const compositeFontFamily = "'Zen Dots', 'Hannari Mincho', 'Courier New', serif";
 
     element.style.fontFamily = compositeFontFamily;
@@ -122,15 +142,19 @@ looker.plugins.visualizations.add({
       return;
     }
 
-    // 設定値の取得
+    // --- 設定値の取得 ---
     const mainColor = config.mainColor || "#00ffff";
     const glow = config.glowStrength || 10;
     const labelText = config.labelOverride || queryResponse.fields.measures[0].label_short || queryResponse.fields.measures[0].label;
 
-    // ▼▼▼ 追加: フォントサイズの設定値を取得 ▼▼▼
+    // フォントサイズ
     const labelFontSize = config.labelFontSize || 14;
     const subFontSize = config.subFontSize || 12;
-    // メイン数値だけは「0なら自動計算」のロジックを入れるため後で計算
+
+    // ▼▼▼ 太字設定の取得 (undefinedの場合はデフォルト値を使用) ▼▼▼
+    const isLabelBold = (typeof config.labelBold === 'undefined') ? false : config.labelBold;
+    const isMainBold = (typeof config.mainBold === 'undefined') ? true : config.mainBold;
+    const isSubBold = (typeof config.subBold === 'undefined') ? false : config.subBold;
 
     const currentFontFamily = "'Zen Dots', 'Hannari Mincho', 'Courier New', serif";
 
@@ -151,13 +175,11 @@ looker.plugins.visualizations.add({
     const height = element.clientHeight;
     this.svg.attr("width", width).attr("height", height);
 
-    // ▼▼▼ メイン数値のフォントサイズ決定ロジック ▼▼▼
+    // メイン数値のフォントサイズ決定
     let mainFontSizeValue;
     if (config.mainFontSize && config.mainFontSize > 0) {
-      // ユーザー指定がある場合はそのpx値を使用
       mainFontSizeValue = config.mainFontSize + "px";
     } else {
-      // 指定が0または空の場合は自動計算 (幅・高さの小さい方の25%)
       mainFontSizeValue = Math.min(width, height) * 0.25 + "px";
     }
 
@@ -165,15 +187,12 @@ looker.plugins.visualizations.add({
     this.svg.selectAll(".content").remove();
     const g = this.svg.append("g").attr("class", "content");
 
-    // 背景
+    // 背景・枠線
     g.append("rect").attr("width", width).attr("height", height).attr("fill", "url(#grid-pattern)");
 
-    // 枠線
     const bracketSize = 15;
     const padding = 10;
     const strokeWidth = 2;
-    const w = width - padding * 2;
-    const h = height - padding * 2;
     const x = padding;
     const y = padding;
 
@@ -188,14 +207,15 @@ looker.plugins.visualizations.add({
 
     // --- テキスト描画 ---
 
-    // 1. ラベル (上部)
+    // 1. ラベル
     g.append("text")
       .attr("x", width / 2)
       .attr("y", height * 0.3)
       .attr("text-anchor", "middle")
       .style("fill", mainColor)
-      // ▼▼▼ 設定値を適用 ▼▼▼
       .style("font-size", labelFontSize + "px")
+      // ▼▼▼ 太字設定を適用 ▼▼▼
+      .style("font-weight", isLabelBold ? "bold" : "normal")
       .style("letter-spacing", "2px")
       .style("text-transform", "uppercase")
       .style("opacity", 0.8)
@@ -203,16 +223,16 @@ looker.plugins.visualizations.add({
       .style("filter", "url(#kpi-glow)")
       .text(labelText);
 
-    // 2. メイン数値 (中央)
+    // 2. メイン数値
     const textObj = g.append("text")
       .attr("x", width / 2)
       .attr("y", height * 0.6)
       .attr("text-anchor", "middle")
       .attr("dy", "0.2em")
       .style("fill", "#ffffff")
-      // ▼▼▼ 設定値を適用（自動 or 固定） ▼▼▼
       .style("font-size", mainFontSizeValue)
-      .style("font-weight", "bold")
+      // ▼▼▼ 太字設定を適用 ▼▼▼
+      .style("font-weight", isMainBold ? "bold" : "normal")
       .style("font-family", currentFontFamily)
       .style("filter", "url(#kpi-glow)")
       .text(0);
@@ -232,15 +252,16 @@ looker.plugins.visualizations.add({
         };
       });
 
-    // 3. サブ情報 (下部)
+    // 3. サブ情報
     if (subValueText) {
       g.append("text")
         .attr("x", width / 2)
         .attr("y", height * 0.85)
         .attr("text-anchor", "middle")
         .style("fill", "#cccccc")
-        // ▼▼▼ 設定値を適用 ▼▼▼
         .style("font-size", subFontSize + "px")
+        // ▼▼▼ 太字設定を適用 ▼▼▼
+        .style("font-weight", isSubBold ? "bold" : "normal")
         .style("letter-spacing", "1px")
         .style("font-family", currentFontFamily)
         .text(subValueText);
