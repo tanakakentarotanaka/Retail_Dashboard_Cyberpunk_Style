@@ -252,6 +252,15 @@ looker.plugins.visualizations.add({
       section: 'Design',
       order: 12
     },
+    // 【追加】タイトル太字設定
+    header_font_bold: {
+      label: "Bold Title",
+      type: "boolean",
+      display_size: 'third',
+      default: false,
+      section: 'Design',
+      order: 13
+    },
 
     // --- Search Box Settings ---
     header_design_search: {
@@ -652,6 +661,8 @@ looker.plugins.visualizations.add({
 
           --header-font-size: 14px;
           --header-text-color: #444;
+          /* ▼▼▼ タイトルフォント太さ変数 ▼▼▼ */
+          --header-font-weight: normal;
 
           /* Search Box Styles */
           --search-box-bg: #fff;
@@ -743,13 +754,13 @@ looker.plugins.visualizations.add({
         }
 
         .group-label {
-          font-weight: 600;
+          /* ▼▼▼ フォントウェイトを変数で制御 ▼▼▼ */
+          font-weight: var(--header-font-weight);
           margin-bottom: 6px;
           font-size: var(--header-font-size);
           color: var(--header-text-color);
           flex-shrink: 0;
           line-height: 1.4;
-          /* ▼▼▼ タイトル部分にも明示的に適用 ▼▼▼ */
           font-family: 'Zen Dots', 'Hannari Mincho', serif;
         }
 
@@ -1051,6 +1062,9 @@ looker.plugins.visualizations.add({
 
     setVar('--header-font-size', fixPx(config.header_font_size, '14px'));
     setVar('--header-text-color', config.header_text_color || '#444');
+
+    // 【追加】タイトル太字設定反映
+    setVar('--header-font-weight', config.header_font_bold ? 'bold' : 'normal');
 
     // --- Search & Button Styles ---
     setVar('--search-box-bg', hexToRgba(config.search_box_bg || '#ffffff', config.search_box_opacity));
