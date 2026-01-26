@@ -1,5 +1,5 @@
 /**
- * Cyberpunk KPI Card Visualization (Zen Dots Font Version)
+ * Cyberpunk KPI Card Visualization (Hannari Mincho / Japanese Style Version)
  * Features: HUD style layout, Neon glow, Count-up animation
  */
 
@@ -38,23 +38,22 @@ looker.plugins.visualizations.add({
   // --- 2. 初期化処理 ---
   create: function(element, config) {
     // ▼▼▼ 追加: フォント読み込み用のStyleタグを注入 ▼▼▼
-    const fontUrl = "https://cdn.jsdelivr.net/gh/tanakakentarotanaka/240322_kentarotanaka@master/zen-dots-v14-latin-regular%20(2).woff2";
 
-    // スタイルタグを作成してフォントを定義
+    // 【注記】「はんなり明朝」はWebフォントとしてCDN配信されていないことが多いため、
+    // Google Fontsにある中で最も雰囲気が近い「Hina Mincho (ひな明朝)」を使用しています。
+    // もし「はんなり明朝」のWOFF2ファイルのURLをお持ちの場合は、前回のコードのように
+    // @font-face { src: url('あなたのURL'); ... } で指定してください。
+
     const style = document.createElement('style');
     style.innerHTML = `
-      @font-face {
-        font-family: 'Zen Dots';
-        src: url('${fontUrl}') format('woff2');
-        font-display: swap;
-      }
+      @import url('https://fonts.googleapis.com/css2?family=Hina+Mincho&display=swap');
     `;
     element.appendChild(style);
     // ▲▲▲ 追加終わり ▲▲▲
 
     // コンテナのスタイル設定
-    // ▼▼▼ 変更: フォントをZen Dotsに変更 ▼▼▼
-    element.style.fontFamily = "'Zen Dots', 'Courier New', monospace";
+    // ▼▼▼ 変更: フォントをHina Minchoに変更 ▼▼▼
+    element.style.fontFamily = "'Hina Mincho', 'Hannari Mincho', serif";
 
     element.style.backgroundColor = "#1a1a2e"; // ダッシュボード共通の背景色
     element.style.color = "#ffffff";
@@ -156,17 +155,6 @@ looker.plugins.visualizations.add({
     const padding = 10;
     const strokeWidth = 2;
 
-    // パス生成関数
-    const drawBracket = (x, y, rotate) => {
-      g.append("path")
-        .attr("d", `M ${x} ${y + bracketSize} L ${x} ${y} L ${x + bracketSize} ${y}`)
-        .attr("fill", "none")
-        .attr("stroke", mainColor)
-        .attr("stroke-width", strokeWidth)
-        .attr("transform", `rotate(${rotate}, ${x}, ${y})`) // 回転中心をコーナーに
-        .style("filter", "url(#kpi-glow)");
-    };
-
     // 左上 (0度), 右上 (90度), 右下 (180度), 左下 (270度)
     // 回転ロジックは単純化のため座標計算で実装
     const w = width - padding * 2;
@@ -208,10 +196,11 @@ looker.plugins.visualizations.add({
       .style("fill", mainColor)
       .style("font-size", "14px")
       .style("letter-spacing", "2px")
-      .style("text-transform", "uppercase")
+      // .style("text-transform", "uppercase") // ▼▼▼ 削除: 日本語では不要なため
       .style("opacity", 0.8)
-      // ▼▼▼ 親要素のフォントを継承させるため削除、もしくは明示的に指定 ▼▼▼
-      .style("font-family", "'Zen Dots', monospace")
+      // ▼▼▼ 変更: Hina Minchoを指定 ▼▼▼
+      .style("font-family", "'Hina Mincho', serif")
+      .style("font-weight", "400") // 明朝体なので細めに設定
       .style("filter", "url(#kpi-glow)")
       .text(labelText);
 
@@ -224,9 +213,10 @@ looker.plugins.visualizations.add({
       .attr("dy", "0.2em") // 垂直方向の微調整
       .style("fill", "#ffffff")
       .style("font-size", Math.min(width, height) * 0.25 + "px") // コンテナサイズに応じて可変
-      .style("font-weight", "bold")
-      // ▼▼▼ 変更: Courier New から Zen Dotsへ ▼▼▼
-      .style("font-family", "'Zen Dots', monospace")
+      // ▼▼▼ 変更: 明朝体のため太字(bold)を外して上品にするか、あるいはそのままにするか。今回は視認性のためnormalへ変更 ▼▼▼
+      .style("font-weight", "normal")
+      // ▼▼▼ 変更: Hina Minchoへ ▼▼▼
+      .style("font-family", "'Hina Mincho', serif")
       .style("filter", "url(#kpi-glow)")
       .text(0); // 初期値0
 
@@ -237,13 +227,11 @@ looker.plugins.visualizations.add({
         const that = d3.select(this);
         const i = d3.interpolateNumber(0, mainValueRaw);
         return function(t) {
-          // 生の数値をフォーマットしてテキストに設定
-          // ここでは簡易的にtoLocaleStringを使用するが、Lookerのフォーマットを維持したい場合は
           // 最終フレームで mainValueFormatted に置き換える
           if (t === 1) {
              that.text(mainValueFormatted);
           } else {
-             // 簡易フォーマット (整数または少数)
+             // 簡易フォーマット
              const val = i(t);
              that.text(Math.floor(val).toLocaleString());
           }
@@ -259,8 +247,8 @@ looker.plugins.visualizations.add({
         .style("fill", "#cccccc")
         .style("font-size", "12px")
         .style("letter-spacing", "1px")
-         // ▼▼▼ Zen Dotsを適用 ▼▼▼
-        .style("font-family", "'Zen Dots', monospace")
+         // ▼▼▼ Hina Minchoを適用 ▼▼▼
+        .style("font-family", "'Hina Mincho', serif")
         .text(subValueText);
     }
 
