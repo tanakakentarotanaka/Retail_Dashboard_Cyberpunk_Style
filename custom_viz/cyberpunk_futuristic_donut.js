@@ -1,6 +1,6 @@
 /**
- * Futuristic Donut Chart Visualization v11
- * (Thinner Legend, Custom Scrollbar, Cleaner UI)
+ * Futuristic Donut Chart Visualization v12
+ * (Added Cyberpunk Leader Lines & Arrows)
  */
 
 looker.plugins.visualizations.add({
@@ -17,11 +17,28 @@ looker.plugins.visualizations.add({
     },
     showLegend: {
       type: "boolean",
-      label: "凡例を表示",
+      label: "凡例リストを表示",
       default: true,
       section: "Style",
       order: 2
     },
+    // --- 新規追加: 引出線設定 ---
+    showLeaderLines: {
+      type: "boolean",
+      label: "引出線ラベルを表示",
+      default: true,
+      section: "Style",
+      order: 3
+    },
+    leaderLineColor: {
+      type: "string",
+      label: "引出線の色",
+      default: "#ffffff",
+      display: "color",
+      section: "Style",
+      order: 4
+    },
+    // -------------------------
     ringWidth: {
       type: "number",
       label: "メインリングの太さ",
@@ -29,7 +46,7 @@ looker.plugins.visualizations.add({
       min: 10,
       max: 100,
       section: "Style",
-      order: 3
+      order: 5
     },
     glowStrength: {
       type: "number",
@@ -38,14 +55,14 @@ looker.plugins.visualizations.add({
       min: 0,
       max: 30,
       section: "Style",
-      order: 4
+      order: 6
     },
     centerLabelText: {
       type: "string",
       label: "中央ラベル",
       default: "TOTAL",
       section: "Style",
-      order: 5
+      order: 7
     },
 
     // --- 凡例 (Legend) 設定 ---
@@ -136,13 +153,14 @@ looker.plugins.visualizations.add({
     this.legendContainer.style.borderRadius = "4px";
     this.legendContainer.style.display = "none";
 
-    // スタイルタグ作成 (中身はupdateAsyncで動的に更新)
+    // スタイルタグ作成
     this.styleTag = document.createElement("style");
     this.styleTag.id = "cyber-scrollbar-style";
     document.head.appendChild(this.styleTag);
 
     this.svg = d3.select(this.chartContainer).append("svg");
 
+    // フィルター定義
     const defs = this.svg.append("defs");
     const filter = defs.append("filter").attr("id", "futuristic-glow");
     filter.append("feGaussianBlur").attr("stdDeviation", "4").attr("result", "coloredBlur");
@@ -206,7 +224,7 @@ looker.plugins.visualizations.add({
 
     const thumbColor = hexToRgba(scrollColor, scrollOpacity);
 
-    // CSS更新 (スクロールバーの色反映)
+    // CSS更新
     this.styleTag.innerHTML = `
       ::-webkit-scrollbar { width: 6px; }
       ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
@@ -217,7 +235,10 @@ looker.plugins.visualizations.add({
     // --- グラフサイズ計算 ---
     const width = this.chartContainer.clientWidth;
     const height = this.chartContainer.clientHeight;
-    const radius = Math.min(width, height) / 2 - 40;
+    // 引出線のために少し余白を確保するため、radiusを少し小さくする
+    const showLeaderLines = config.showLeaderLines !== false;
+    const margin = showLeaderLines ? 80 : 40;
+    const radius = Math.min(width, height) / 2 - margin;
 
     // --- SVG更新 ---
     this.svg.attr("width", width).attr("height", height);
@@ -234,9 +255,9 @@ looker.plugins.visualizations.add({
     const pieColors = ["#d100d1", "#ff00ff", "#ffffff", "#00ffff", "#8a2be2", "#4b0082", "#00ced1", "#ff1493"];
     const colorScale = d3.scaleOrdinal(pieColors);
 
-    // --- 凡例描画 ---
+    // --- 凡例描画 (HTML Side) ---
     if (showLegend) {
-      this.legendContainer.innerHTML = ""; // ヘッダー削除のためクリアのみ実行
+      this.legendContainer.innerHTML = "";
 
       const totalValue = measureTotals[0];
 
@@ -298,6 +319,7 @@ looker.plugins.visualizations.add({
 
     const graphicsLayer = this.mainGroup.append("g");
     const textLayer = this.mainGroup.append("g");
+    const leaderLineLayer = this.mainGroup.append("g"); // 引出線レイヤー追加
 
     const mainRingWidth = config.ringWidth || 30;
     const mainInnerRadius = radius - mainRingWidth;
@@ -379,6 +401,79 @@ looker.plugins.visualizations.add({
       }
     });
 
+    // --- 引出線 (Leader Lines) の描画 ---
+    if (showLeaderLines) {
+      const lineTotal = measureTotals[0];
+      const lineColor = config.leaderLineColor || "#ffffff";
+
+      // リングの外側を計算 (radius + 最大のリングオフセット + 余白)
+      const outerRadius = radius + 35;
+      const labelArc = d3.arc().innerRadius(outerRadius).outerRadius(outerRadius);
+
+      // データ準備 (角度が小さすぎるものはラベル除外)
+      const lineData = pie(data).filter(d => (d.endAngle - d.startAngle) > 0.15); // 約3%未満は非表示
+
+      const lines = leaderLineLayer.selectAll(".leader-lines")
+        .data(lineData)
+        .enter().append("g");
+
+      // 1. ノードポイント（矢印の根本）
+      lines.append("circle")
+        .attr("r", 2)
+        .attr("transform", d => `translate(${mainArc.centroid(d)})`)
+        .attr("fill", lineColor)
+        .style("filter", "url(#futuristic-glow)");
+
+      // 2. 引出線（ポリライン）
+      lines.append("polyline")
+        .attr("points", d => {
+          const posA = mainArc.centroid(d); // 始点（パイの中央）
+          const posB = labelArc.centroid(d); // 中間点（外周）
+          const posC = labelArc.centroid(d); // 終点（ラベル位置）
+
+          // 角度に基づいて左右を判定
+          const midAngle = d.startAngle + (d.endAngle - d.startAngle) / 2;
+          // 左右にラベルを広げる
+          posC[0] = (outerRadius + 15) * (midAngle < Math.PI ? 1 : -1);
+
+          return [posA, posB, posC];
+        })
+        .style("fill", "none")
+        .style("stroke", lineColor)
+        .style("stroke-width", "1px")
+        .style("stroke-opacity", "0.6")
+        .style("stroke-dasharray", "2,2"); // 点線でサイバー感を演出
+
+      // 3. ラベルテキスト
+      lines.append("text")
+        .attr("transform", d => {
+          const pos = labelArc.centroid(d);
+          const midAngle = d.startAngle + (d.endAngle - d.startAngle) / 2;
+          const x = (outerRadius + 20) * (midAngle < Math.PI ? 1 : -1);
+          return `translate(${x}, ${pos[1]})`;
+        })
+        .attr("dy", "0.35em")
+        .style("text-anchor", d => {
+          const midAngle = d.startAngle + (d.endAngle - d.startAngle) / 2;
+          return midAngle < Math.PI ? "start" : "end";
+        })
+        .style("font-size", "10px")
+        .style("fill", lineColor)
+        .style("font-weight", "bold")
+        .each(function(d) {
+           const el = d3.select(this);
+           const dimText = LookerCharts.Utils.textForCell(d.data[dimension.name]);
+           const val = d.data[measures[0].name].value;
+           const pct = (val / lineTotal * 100).toFixed(1) + "%";
+
+           // ディメンション名
+           el.append("tspan").text(dimText).attr("x", 0).attr("dy", "-0.6em");
+           // パーセンテージ
+           el.append("tspan").text(pct).attr("x", 0).attr("dy", "1.2em").style("fill", colorScale(d.index)).style("font-size", "9px");
+        });
+    }
+
+    // --- ツールチップ ---
     const tooltip = d3.select(this.tooltip);
     arcs.on("mouseover", function(event, d) {
       d3.select(this).select("path").transition().attr("d", mainArcHover).style("brightness", "1.3");
