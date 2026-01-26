@@ -1,6 +1,6 @@
 /**
- * Futuristic Donut Chart Visualization v14
- * (Neo-Tokyo Style: Added 'Shippori Mincho' Font for Leader Lines)
+ * Futuristic Donut Chart Visualization v15
+ * (Added Threshold Logic: Hide small lines, Show on Hover)
  */
 
 looker.plugins.visualizations.add({
@@ -41,11 +41,21 @@ looker.plugins.visualizations.add({
     leaderLineFontSize: {
       type: "number",
       label: "引出線ラベルの文字サイズ",
-      default: 12, // 明朝体は少し細く見えるため、デフォルトを少し大きくしました
+      default: 12,
       min: 8,
       max: 24,
       section: "Style",
       order: 5
+    },
+    leaderLineThreshold: {
+      type: "number",
+      label: "引出線表示のしきい値 (%)",
+      default: 3.0,
+      min: 0,
+      max: 20,
+      step: 0.1,
+      section: "Style",
+      order: 6
     },
     leaderLineContent: {
       type: "string",
@@ -58,7 +68,7 @@ looker.plugins.visualizations.add({
       ],
       default: "both",
       section: "Style",
-      order: 6
+      order: 7
     },
     // -------------------------
     ringWidth: {
@@ -68,7 +78,7 @@ looker.plugins.visualizations.add({
       min: 10,
       max: 100,
       section: "Style",
-      order: 7
+      order: 8
     },
     glowStrength: {
       type: "number",
@@ -77,14 +87,14 @@ looker.plugins.visualizations.add({
       min: 0,
       max: 30,
       section: "Style",
-      order: 8
+      order: 9
     },
     centerLabelText: {
       type: "string",
       label: "中央ラベル",
       default: "TOTAL",
       section: "Style",
-      order: 9
+      order: 10
     },
 
     // --- 凡例 (Legend) 設定 ---
@@ -150,7 +160,7 @@ looker.plugins.visualizations.add({
       document.head.appendChild(link);
     }
 
-    element.style.fontFamily = "'Courier New', Courier, monospace"; // ベースは等幅フォント
+    element.style.fontFamily = "'Courier New', Courier, monospace";
     element.style.backgroundColor = config.backgroundColor || "#2a1a4a";
     element.style.color = "#ffffff";
     element.style.overflow = "hidden";
@@ -185,14 +195,14 @@ looker.plugins.visualizations.add({
     this.legendContainer.style.borderRadius = "4px";
     this.legendContainer.style.display = "none";
 
-    // スタイルタグ作成
+    // スタイルタグ
     this.styleTag = document.createElement("style");
     this.styleTag.id = "cyber-scrollbar-style";
     document.head.appendChild(this.styleTag);
 
     this.svg = d3.select(this.chartContainer).append("svg");
 
-    // フィルター定義
+    // フィルター
     const defs = this.svg.append("defs");
     const filter = defs.append("filter").attr("id", "futuristic-glow");
     filter.append("feGaussianBlur").attr("stdDeviation", "4").attr("result", "coloredBlur");
@@ -281,6 +291,7 @@ looker.plugins.visualizations.add({
     const dimension = queryResponse.fields.dimensions[0];
     const measures = queryResponse.fields.measures;
     const measureTotals = measures.map(m => d3.sum(data, d => d[m.name].value));
+    const totalValue = measureTotals[0];
 
     const pieColors = ["#d100d1", "#ff00ff", "#ffffff", "#00ffff", "#8a2be2", "#4b0082", "#00ced1", "#ff1493"];
     const colorScale = d3.scaleOrdinal(pieColors);
@@ -288,7 +299,6 @@ looker.plugins.visualizations.add({
     // --- 凡例描画 (HTML Side) ---
     if (showLegend) {
       this.legendContainer.innerHTML = "";
-      const totalValue = measureTotals[0];
       data.forEach((d, i) => {
         const dimVal = LookerCharts.Utils.textForCell(d[dimension.name]);
         const measVal = d[measures[0].name].value;
@@ -329,11 +339,27 @@ looker.plugins.visualizations.add({
         item.onmouseenter = () => {
           item.style.borderLeft = `2px solid ${color}`;
           this.mainGroup.selectAll(".data-arc path").style("opacity", 0.3);
-          this.mainGroup.select(`#arc-path-${i}`).style("opacity", 1).style("filter", "url(#futuristic-glow)").attr("stroke", "#fff").attr("stroke-width", 2);
+          const arcPath = this.mainGroup.select(`#arc-path-${i}`);
+          arcPath.style("opacity", 1).style("filter", "url(#futuristic-glow)").attr("stroke", "#fff").attr("stroke-width", 2);
+
+          // ホバー時は強制的に引出線を表示
+          if (showLeaderLines) {
+             this.mainGroup.select(`#leader-line-${i}`).transition().duration(200).style("opacity", 1);
+          }
         };
         item.onmouseleave = () => {
           item.style.borderLeft = "2px solid transparent";
           this.mainGroup.selectAll(".data-arc path").style("opacity", 1).style("filter", "url(#futuristic-glow)").attr("stroke", "none");
+
+          // ホバー解除時はしきい値チェックに戻す
+          if (showLeaderLines) {
+             const threshold = config.leaderLineThreshold != null ? config.leaderLineThreshold : 3.0;
+             const val = d[measures[0].name].value;
+             const pct = (val / totalValue * 100);
+             if (pct < threshold) {
+                this.mainGroup.select(`#leader-line-${i}`).transition().duration(200).style("opacity", 0);
+             }
+          }
         };
         this.legendContainer.appendChild(item);
       });
@@ -429,6 +455,8 @@ looker.plugins.visualizations.add({
     });
 
     // --- 引出線 (Leader Lines) の描画 ---
+    const leaderThreshold = config.leaderLineThreshold != null ? config.leaderLineThreshold : 3.0;
+
     if (showLeaderLines) {
       const lineTotal = measureTotals[0];
       const lineColor = config.leaderLineColor || "#ffffff";
@@ -436,11 +464,17 @@ looker.plugins.visualizations.add({
 
       const outerRadius = radius + 35;
       const labelArc = d3.arc().innerRadius(outerRadius).outerRadius(outerRadius);
-      const lineData = pie(data).filter(d => (d.endAngle - d.startAngle) > 0.15);
 
+      // 全データで作成（フィルタリングせず、Opacityで制御）
       const lines = leaderLineLayer.selectAll(".leader-lines")
-        .data(lineData)
-        .enter().append("g");
+        .data(pie(data))
+        .enter().append("g")
+        .attr("id", (d, i) => `leader-line-${i}`)
+        .style("opacity", d => {
+           const pct = (d.data[measures[0].name].value / lineTotal * 100);
+           return pct >= leaderThreshold ? 1 : 0;
+        })
+        .style("pointer-events", "none"); // 線自体はマウスイベントを透過
 
       // 1. ノード
       lines.append("circle")
@@ -465,7 +499,7 @@ looker.plugins.visualizations.add({
         .style("stroke-opacity", "0.6")
         .style("stroke-dasharray", "2,2");
 
-      // 3. テキスト (Shippori Mincho 適用)
+      // 3. テキスト (Shippori Mincho)
       lines.append("text")
         .attr("transform", d => {
           const pos = labelArc.centroid(d);
@@ -478,10 +512,10 @@ looker.plugins.visualizations.add({
           const midAngle = d.startAngle + (d.endAngle - d.startAngle) / 2;
           return midAngle < Math.PI ? "start" : "end";
         })
-        .style("font-family", "'Shippori Mincho', serif") // ★ここでフォント指定
+        .style("font-family", "'Shippori Mincho', serif")
         .style("font-size", leaderFontSize + "px")
         .style("fill", lineColor)
-        .style("font-weight", "800") // 明朝体は細いのでかなり太くする
+        .style("font-weight", "800")
         .each(function(d) {
            const el = d3.select(this);
            const dimText = LookerCharts.Utils.textForCell(d.data[dimension.name]);
@@ -507,25 +541,46 @@ looker.plugins.visualizations.add({
              .attr("x", 0)
              .attr("dy", "1.3em")
              .style("fill", colorScale(d.index))
-             .style("font-family", "'Courier New', monospace") // 数字部分は読みやすく等幅に戻す（あえて混在させる）
+             .style("font-family", "'Courier New', monospace")
              .style("font-weight", "bold")
              .style("font-size", (leaderFontSize - 1) + "px");
         });
     }
 
-    // --- ツールチップ ---
+    // --- ツールチップ & ホバー連動 ---
     const tooltip = d3.select(this.tooltip);
     arcs.on("mouseover", function(event, d) {
+      // 1. パスのハイライト
       d3.select(this).select("path").transition().attr("d", mainArcHover).style("brightness", "1.3");
+
+      // 2. ツールチップ表示
       const dimVal = LookerCharts.Utils.textForCell(d.data[dimension.name]);
       const measVal = LookerCharts.Utils.textForCell(d.data[measures[0].name]);
       const color = d3.select(this).select("path").attr("fill");
       tooltip.style("visibility", "visible").style("border-color", color).style("box-shadow", `0 0 15px ${color}`)
         .html(`<div style="font-weight:bold; color:${color};">${dimVal}</div><div style="color:#fff;">${measVal}</div>`);
+
+      // 3. 引出線を表示 (しきい値以下でも表示)
+      if (showLeaderLines) {
+        d3.select(`#leader-line-${d.index}`).transition().duration(200).style("opacity", 1);
+      }
+
     }).on("mousemove", e => tooltip.style("top", (e.pageY-15)+"px").style("left", (e.pageX+15)+"px"))
-      .on("mouseout", function() {
+      .on("mouseout", function(event, d) {
+      // 1. パスを戻す
       d3.select(this).select("path").transition().attr("d", mainArc).style("brightness", "1.0");
+
+      // 2. ツールチップ非表示
       tooltip.style("visibility", "hidden");
+
+      // 3. 引出線を元に戻す (しきい値以下の場合は非表示へ)
+      if (showLeaderLines) {
+         const val = d.data[measures[0].name].value;
+         const pct = (val / totalValue * 100);
+         if (pct < leaderThreshold) {
+           d3.select(`#leader-line-${d.index}`).transition().duration(200).style("opacity", 0);
+         }
+      }
     });
 
     const centerLabel = config.centerLabelText || "TOTAL";
