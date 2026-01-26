@@ -1,6 +1,6 @@
 looker.plugins.visualizations.add({
   id: "cyberpunk-custom-advanced-cross-filter",
-  label: "Single Item Cross Filter (Zen Dots + Courier List)",
+  label: "Single Item Cross Filter (Zen Dots + Hannari Mincho)",
 
   // ============================================================
   //  Configuration Options Definition
@@ -261,7 +261,6 @@ looker.plugins.visualizations.add({
       section: 'Design',
       order: 19
     },
-    // 【追加】検索ボックスの表示・非表示設定
     show_search: {
       label: "Show Search Box",
       type: "boolean",
@@ -630,7 +629,10 @@ looker.plugins.visualizations.add({
 
     element.innerHTML = `
       <style>
-        /* ▼▼▼ フォント読み込み設定 ▼▼▼ */
+        /* ▼▼▼ 追加: Google Fonts "Hannari Mincho" 読み込み ▼▼▼ */
+        @import url('https://fonts.googleapis.com/css2?family=Hannari+Mincho&display=swap');
+
+        /* ▼▼▼ フォント読み込み設定 (Zen Dots) ▼▼▼ */
         @font-face {
           font-family: 'Zen Dots';
           src: url('${fontUrl}') format('woff2');
@@ -689,8 +691,8 @@ looker.plugins.visualizations.add({
           --row-active-text: #1967d2;
           --data-bar-opacity: 0.7;
 
-          /* ▼▼▼ Zen Dotsをメインフォントに設定 (タイトル等) ▼▼▼ */
-          font-family: 'Zen Dots', 'Open Sans', sans-serif;
+          /* ▼▼▼ Zen Dotsを優先し、日本語は Hannari Mincho にフォールバック ▼▼▼ */
+          font-family: 'Zen Dots', 'Hannari Mincho', sans-serif;
           width: 100%;
           height: 100%;
           overflow: hidden;
@@ -701,12 +703,12 @@ looker.plugins.visualizations.add({
           z-index: 0;
         }
 
-        /* ▼▼▼ フォーム要素にもZen Dotsを適用 ▼▼▼ */
+        /* ▼▼▼ フォーム要素にも同じフォント設定を適用 ▼▼▼ */
         .cv-container input,
         .cv-container button,
         .cv-container .search-box,
         .cv-container .mode-btn {
-          font-family: 'Zen Dots', sans-serif;
+          font-family: 'Zen Dots', 'Hannari Mincho', sans-serif;
         }
 
         /* Background Layers */
@@ -747,6 +749,8 @@ looker.plugins.visualizations.add({
           color: var(--header-text-color);
           flex-shrink: 0;
           line-height: 1.4;
+          /* ▼▼▼ タイトル部分にも明示的に適用 ▼▼▼ */
+          font-family: 'Zen Dots', 'Hannari Mincho', serif;
         }
 
         /* --- Search Area Styles --- */
