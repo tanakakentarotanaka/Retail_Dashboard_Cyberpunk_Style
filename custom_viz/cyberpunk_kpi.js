@@ -1,7 +1,6 @@
 looker.plugins.visualizations.add({
   // --- 1. 設定項目 ---
   options: {
-    // ▼▼▼ フォント切り替え設定は不要になったので削除しました ▼▼▼
     mainColor: {
       type: "string",
       label: "アクセントカラー(枠線・数値)",
@@ -17,6 +16,26 @@ looker.plugins.visualizations.add({
       max: 30,
       section: "Style"
     },
+    // ▼▼▼ 追加: フォントサイズ設定 ▼▼▼
+    labelFontSize: {
+      type: "number",
+      label: "上部ラベルのサイズ (px)",
+      default: 14,
+      section: "Style"
+    },
+    mainFontSize: {
+      type: "number",
+      label: "メイン数値のサイズ (0で自動)",
+      default: 0, // 0の場合はコンテナサイズに応じて自動計算
+      section: "Style"
+    },
+    subFontSize: {
+      type: "number",
+      label: "下部サブ情報のサイズ (px)",
+      default: 12,
+      section: "Style"
+    },
+    // ▲▲▲ 追加終わり ▲▲▲
     labelOverride: {
       type: "string",
       label: "ラベル名の上書き (空欄で自動)",
@@ -35,7 +54,6 @@ looker.plugins.visualizations.add({
   create: function(element, config) {
     const zenDotsUrl = "https://cdn.jsdelivr.net/gh/tanakakentarotanaka/240322_kentarotanaka@master/zen-dots-v14-latin-regular%20(2).woff2";
 
-    // スタイルタグを作成してフォントを定義
     const style = document.createElement('style');
     style.innerHTML = `
       /* 日本語用: はんなり明朝 */
@@ -50,11 +68,9 @@ looker.plugins.visualizations.add({
     `;
     element.appendChild(style);
 
-    // ▼▼▼ 変更: 複合フォント定義 (Zen Dotsを優先、なければHannari Mincho) ▼▼▼
-    // Zen Dotsには日本語が含まれないため、日本語文字は自動的にHannari Minchoにフォールバックします
+    // 複合フォント定義 (Zen Dots優先、無ければはんなり明朝)
     const compositeFontFamily = "'Zen Dots', 'Hannari Mincho', 'Courier New', serif";
 
-    // コンテナのスタイル設定
     element.style.fontFamily = compositeFontFamily;
     element.style.backgroundColor = "#1a1a2e";
     element.style.color = "#ffffff";
@@ -72,10 +88,8 @@ looker.plugins.visualizations.add({
     this.container.style.justifyContent = "center";
     this.container.style.alignItems = "center";
 
-    // SVG領域作成
     this.svg = d3.select(this.container).append("svg");
 
-    // フィルター定義（発光効果）
     const defs = this.svg.append("defs");
     const filter = defs.append("filter").attr("id", "kpi-glow");
     filter.append("feGaussianBlur").attr("stdDeviation", "4").attr("result", "coloredBlur");
@@ -83,7 +97,6 @@ looker.plugins.visualizations.add({
     feMerge.append("feMergeNode").attr("in", "coloredBlur");
     feMerge.append("feMergeNode").attr("in", "SourceGraphic");
 
-    // 背景グリッド
     const pattern = defs.append("pattern")
       .attr("id", "grid-pattern")
       .attr("width", 20)
@@ -94,9 +107,6 @@ looker.plugins.visualizations.add({
       .attr("fill", "none")
       .attr("stroke", "rgba(255, 255, 255, 0.05)")
       .attr("stroke-width", 1);
-
-    // この変数を作成時にも保持しておくと便利ですが、updateAsyncでも同じ定義を使います
-    this.fontFamily = compositeFontFamily;
   },
 
   // --- 3. 描画処理 ---
@@ -112,11 +122,16 @@ looker.plugins.visualizations.add({
       return;
     }
 
+    // 設定値の取得
     const mainColor = config.mainColor || "#00ffff";
     const glow = config.glowStrength || 10;
     const labelText = config.labelOverride || queryResponse.fields.measures[0].label_short || queryResponse.fields.measures[0].label;
 
-    // ▼▼▼ フォント設定: ここでも複合フォントを指定 ▼▼▼
+    // ▼▼▼ 追加: フォントサイズの設定値を取得 ▼▼▼
+    const labelFontSize = config.labelFontSize || 14;
+    const subFontSize = config.subFontSize || 12;
+    // メイン数値だけは「0なら自動計算」のロジックを入れるため後で計算
+
     const currentFontFamily = "'Zen Dots', 'Hannari Mincho', 'Courier New', serif";
 
     // データ取得
@@ -136,13 +151,24 @@ looker.plugins.visualizations.add({
     const height = element.clientHeight;
     this.svg.attr("width", width).attr("height", height);
 
+    // ▼▼▼ メイン数値のフォントサイズ決定ロジック ▼▼▼
+    let mainFontSizeValue;
+    if (config.mainFontSize && config.mainFontSize > 0) {
+      // ユーザー指定がある場合はそのpx値を使用
+      mainFontSizeValue = config.mainFontSize + "px";
+    } else {
+      // 指定が0または空の場合は自動計算 (幅・高さの小さい方の25%)
+      mainFontSizeValue = Math.min(width, height) * 0.25 + "px";
+    }
+
     this.svg.select("#kpi-glow feGaussianBlur").attr("stdDeviation", glow / 2);
     this.svg.selectAll(".content").remove();
     const g = this.svg.append("g").attr("class", "content");
 
-    // 背景・枠線描画
+    // 背景
     g.append("rect").attr("width", width).attr("height", height).attr("fill", "url(#grid-pattern)");
 
+    // 枠線
     const bracketSize = 15;
     const padding = 10;
     const strokeWidth = 2;
@@ -151,44 +177,42 @@ looker.plugins.visualizations.add({
     const x = padding;
     const y = padding;
 
-    // 四隅
     const drawPath = (d) => g.append("path").attr("d", d).attr("stroke", mainColor).attr("stroke-width", strokeWidth).attr("fill", "none").style("filter", "url(#kpi-glow)");
     drawPath(`M ${x} ${y+bracketSize} L ${x} ${y} L ${x+bracketSize} ${y}`);
     drawPath(`M ${width-x-bracketSize} ${y} L ${width-x} ${y} L ${width-x} ${y+bracketSize}`);
     drawPath(`M ${width-x} ${height-y-bracketSize} L ${width-x} ${height-y} L ${width-x-bracketSize} ${height-y}`);
     drawPath(`M ${x+bracketSize} ${height-y} L ${x} ${height-y} L ${x} ${height-y-bracketSize}`);
 
-    // 装飾ライン
     g.append("line").attr("x1", width*0.3).attr("y1", padding).attr("x2", width*0.7).attr("y2", padding).attr("stroke", mainColor).attr("opacity", 0.3);
     g.append("line").attr("x1", width*0.3).attr("y1", height-padding).attr("x2", width*0.7).attr("y2", height-padding).attr("stroke", mainColor).attr("opacity", 0.3);
 
     // --- テキスト描画 ---
 
-    // 1. ラベル
+    // 1. ラベル (上部)
     g.append("text")
       .attr("x", width / 2)
       .attr("y", height * 0.3)
       .attr("text-anchor", "middle")
       .style("fill", mainColor)
-      .style("font-size", "14px")
+      // ▼▼▼ 設定値を適用 ▼▼▼
+      .style("font-size", labelFontSize + "px")
       .style("letter-spacing", "2px")
       .style("text-transform", "uppercase")
       .style("opacity", 0.8)
-      // ▼▼▼ 複合フォント適用 ▼▼▼
       .style("font-family", currentFontFamily)
       .style("filter", "url(#kpi-glow)")
       .text(labelText);
 
-    // 2. メイン数値
+    // 2. メイン数値 (中央)
     const textObj = g.append("text")
       .attr("x", width / 2)
       .attr("y", height * 0.6)
       .attr("text-anchor", "middle")
       .attr("dy", "0.2em")
       .style("fill", "#ffffff")
-      .style("font-size", Math.min(width, height) * 0.25 + "px")
+      // ▼▼▼ 設定値を適用（自動 or 固定） ▼▼▼
+      .style("font-size", mainFontSizeValue)
       .style("font-weight", "bold")
-      // ▼▼▼ 複合フォント適用 ▼▼▼
       .style("font-family", currentFontFamily)
       .style("filter", "url(#kpi-glow)")
       .text(0);
@@ -208,16 +232,16 @@ looker.plugins.visualizations.add({
         };
       });
 
-    // 3. サブ情報
+    // 3. サブ情報 (下部)
     if (subValueText) {
       g.append("text")
         .attr("x", width / 2)
         .attr("y", height * 0.85)
         .attr("text-anchor", "middle")
         .style("fill", "#cccccc")
-        .style("font-size", "12px")
+        // ▼▼▼ 設定値を適用 ▼▼▼
+        .style("font-size", subFontSize + "px")
         .style("letter-spacing", "1px")
-        // ▼▼▼ 複合フォント適用 ▼▼▼
         .style("font-family", currentFontFamily)
         .text(subValueText);
     }
