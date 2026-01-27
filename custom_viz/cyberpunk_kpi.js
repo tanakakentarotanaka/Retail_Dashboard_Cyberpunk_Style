@@ -16,57 +16,113 @@ looker.plugins.visualizations.add({
       max: 30,
       section: "Style"
     },
-    // --- ラベル設定 ---
+
+    // --- ラベル(1行目)設定 ---
+    labelOverride: {
+      type: "string",
+      label: "ラベル(1行目): 名前 (空欄で自動)",
+      default: "",
+      section: "Content",
+      order: 1
+    },
     labelFontSize: {
       type: "number",
-      label: "ラベル: サイズ (px)",
+      label: "ラベル(1行目): サイズ (px)",
       default: 14,
-      section: "Style"
+      section: "Style",
+      order: 1
     },
     labelBold: {
       type: "boolean",
-      label: "ラベル: 太字にする",
+      label: "ラベル(1行目): 太字にする",
       default: false,
-      section: "Style"
+      section: "Style",
+      order: 2
     },
+
+    // --- ラベル(2行目)設定 ---
+    label2Override: {
+      type: "string",
+      label: "ラベル(2行目): 名前 (空欄で非表示)",
+      default: "",
+      section: "Content",
+      order: 2
+    },
+    label2FontSize: {
+      type: "number",
+      label: "ラベル(2行目): サイズ (px)",
+      default: 12,
+      section: "Style",
+      order: 3
+    },
+    label2Bold: {
+      type: "boolean",
+      label: "ラベル(2行目): 太字にする",
+      default: false,
+      section: "Style",
+      order: 4
+    },
+
+    // --- ラベル(3行目)設定 ---
+    label3Override: {
+      type: "string",
+      label: "ラベル(3行目): 名前 (空欄で非表示)",
+      default: "",
+      section: "Content",
+      order: 3
+    },
+    label3FontSize: {
+      type: "number",
+      label: "ラベル(3行目): サイズ (px)",
+      default: 12,
+      section: "Style",
+      order: 5
+    },
+    label3Bold: {
+      type: "boolean",
+      label: "ラベル(3行目): 太字にする",
+      default: false,
+      section: "Style",
+      order: 6
+    },
+
     // --- メイン数値設定 ---
     mainFontSize: {
       type: "number",
       label: "数値: サイズ (0で自動)",
       default: 0,
-      section: "Style"
+      section: "Style",
+      order: 10
     },
     mainBold: {
       type: "boolean",
       label: "数値: 太字にする",
       default: true,
-      section: "Style"
+      section: "Style",
+      order: 11
     },
+
     // --- サブ情報設定 ---
+    subLabelOverride: {
+      type: "string",
+      label: "サブ情報の上書き (2つ目のメジャー)",
+      default: "",
+      section: "Content",
+      order: 10
+    },
     subFontSize: {
       type: "number",
       label: "サブ情報: サイズ (px)",
       default: 12,
-      section: "Style"
+      section: "Style",
+      order: 20
     },
     subBold: {
       type: "boolean",
       label: "サブ情報: 太字にする",
       default: false,
-      section: "Style"
-    },
-    // --- コンテンツ設定 ---
-    labelOverride: {
-      type: "string",
-      label: "ラベル名の上書き (空欄で自動)",
-      default: "",
-      section: "Content"
-    },
-    subLabelOverride: {
-      type: "string",
-      label: "サブ情報の上書き (2つ目のメジャー)",
-      default: "",
-      section: "Content"
+      section: "Style",
+      order: 21
     }
   },
 
@@ -145,14 +201,22 @@ looker.plugins.visualizations.add({
     // --- 設定値の取得 ---
     const mainColor = config.mainColor || "#00ffff";
     const glow = config.glowStrength || 10;
-    const labelText = config.labelOverride || queryResponse.fields.measures[0].label_short || queryResponse.fields.measures[0].label;
 
-    // フォントサイズ
+    // ラベルテキスト取得 (1行目～3行目)
+    const labelText1 = config.labelOverride || queryResponse.fields.measures[0].label_short || queryResponse.fields.measures[0].label;
+    const labelText2 = config.label2Override || "";
+    const labelText3 = config.label3Override || "";
+
+    // フォントサイズ取得
     const labelFontSize = config.labelFontSize || 14;
+    const label2FontSize = config.label2FontSize || 12;
+    const label3FontSize = config.label3FontSize || 12;
     const subFontSize = config.subFontSize || 12;
 
-    // ▼▼▼ 太字設定の取得 (undefinedの場合はデフォルト値を使用) ▼▼▼
+    // 太字設定の取得
     const isLabelBold = (typeof config.labelBold === 'undefined') ? false : config.labelBold;
+    const isLabel2Bold = (typeof config.label2Bold === 'undefined') ? false : config.label2Bold;
+    const isLabel3Bold = (typeof config.label3Bold === 'undefined') ? false : config.label3Bold;
     const isMainBold = (typeof config.mainBold === 'undefined') ? true : config.mainBold;
     const isSubBold = (typeof config.subBold === 'undefined') ? false : config.subBold;
 
@@ -207,21 +271,46 @@ looker.plugins.visualizations.add({
 
     // --- テキスト描画 ---
 
-    // 1. ラベル
-    g.append("text")
+    // 1. ラベル (複数行対応)
+    const labelGroup = g.append("text")
       .attr("x", width / 2)
+      // 行が増えると下に伸びるため、開始位置を少し調整（30%の位置から描画）
       .attr("y", height * 0.3)
       .attr("text-anchor", "middle")
       .style("fill", mainColor)
-      .style("font-size", labelFontSize + "px")
-      // ▼▼▼ 太字設定を適用 ▼▼▼
-      .style("font-weight", isLabelBold ? "bold" : "normal")
-      .style("letter-spacing", "2px")
-      .style("text-transform", "uppercase")
       .style("opacity", 0.8)
       .style("font-family", currentFontFamily)
       .style("filter", "url(#kpi-glow)")
-      .text(labelText);
+      .style("letter-spacing", "2px")
+      .style("text-transform", "uppercase");
+
+    // 1行目
+    labelGroup.append("tspan")
+      .attr("x", width / 2)
+      .attr("dy", "0em")
+      .text(labelText1)
+      .style("font-size", labelFontSize + "px")
+      .style("font-weight", isLabelBold ? "bold" : "normal");
+
+    // 2行目 (入力がある場合のみ)
+    if (labelText2) {
+      labelGroup.append("tspan")
+        .attr("x", width / 2)
+        .attr("dy", "1.3em") // 行間
+        .text(labelText2)
+        .style("font-size", label2FontSize + "px")
+        .style("font-weight", isLabel2Bold ? "bold" : "normal");
+    }
+
+    // 3行目 (入力がある場合のみ)
+    if (labelText3) {
+      labelGroup.append("tspan")
+        .attr("x", width / 2)
+        .attr("dy", "1.3em") // 行間
+        .text(labelText3)
+        .style("font-size", label3FontSize + "px")
+        .style("font-weight", isLabel3Bold ? "bold" : "normal");
+    }
 
     // 2. メイン数値
     const textObj = g.append("text")
@@ -231,7 +320,6 @@ looker.plugins.visualizations.add({
       .attr("dy", "0.2em")
       .style("fill", "#ffffff")
       .style("font-size", mainFontSizeValue)
-      // ▼▼▼ 太字設定を適用 ▼▼▼
       .style("font-weight", isMainBold ? "bold" : "normal")
       .style("font-family", currentFontFamily)
       .style("filter", "url(#kpi-glow)")
@@ -260,7 +348,6 @@ looker.plugins.visualizations.add({
         .attr("text-anchor", "middle")
         .style("fill", "#cccccc")
         .style("font-size", subFontSize + "px")
-        // ▼▼▼ 太字設定を適用 ▼▼▼
         .style("font-weight", isSubBold ? "bold" : "normal")
         .style("letter-spacing", "1px")
         .style("font-family", currentFontFamily)
