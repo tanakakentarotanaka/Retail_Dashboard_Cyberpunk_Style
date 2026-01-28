@@ -17,6 +17,26 @@ looker.plugins.visualizations.add({
       section: "Style"
     },
 
+    // --- 【追加】配置調整 ---
+    labelYPos: {
+      type: "number",
+      label: "配置: ラベルの垂直位置(%, 標準30)",
+      default: 30,
+      min: 0,
+      max: 100,
+      section: "Style",
+      order: 0
+    },
+    mainYPos: {
+      type: "number",
+      label: "配置: 数値の垂直位置(%, 標準60)",
+      default: 60,
+      min: 0,
+      max: 100,
+      section: "Style",
+      order: 0
+    },
+
     // --- ラベル(1行目)設定 ---
     labelOverride: {
       type: "string",
@@ -202,6 +222,10 @@ looker.plugins.visualizations.add({
     const mainColor = config.mainColor || "#00ffff";
     const glow = config.glowStrength || 10;
 
+    // 位置設定の取得 (パーセンテージを0.0~1.0に変換)
+    const labelYPct = (config.labelYPos !== undefined ? config.labelYPos : 30) / 100;
+    const mainYPct = (config.mainYPos !== undefined ? config.mainYPos : 60) / 100;
+
     // ラベルテキスト取得 (1行目～3行目)
     const labelText1 = config.labelOverride || queryResponse.fields.measures[0].label_short || queryResponse.fields.measures[0].label;
     const labelText2 = config.label2Override || "";
@@ -274,8 +298,8 @@ looker.plugins.visualizations.add({
     // 1. ラベル (複数行対応)
     const labelGroup = g.append("text")
       .attr("x", width / 2)
-      // ★修正: 30%から20%に変更して上に移動
-      .attr("y", height * 0.2)
+      // 【変更】設定値（%）を使用
+      .attr("y", height * labelYPct)
       .attr("text-anchor", "middle")
       .style("fill", mainColor)
       .style("opacity", 0.8)
@@ -292,7 +316,7 @@ looker.plugins.visualizations.add({
       .style("font-size", labelFontSize + "px")
       .style("font-weight", isLabelBold ? "bold" : "normal");
 
-    // 2行目 (入力がある場合のみ)
+    // 2行目
     if (labelText2) {
       labelGroup.append("tspan")
         .attr("x", width / 2)
@@ -302,7 +326,7 @@ looker.plugins.visualizations.add({
         .style("font-weight", isLabel2Bold ? "bold" : "normal");
     }
 
-    // 3行目 (入力がある場合のみ)
+    // 3行目
     if (labelText3) {
       labelGroup.append("tspan")
         .attr("x", width / 2)
@@ -315,8 +339,8 @@ looker.plugins.visualizations.add({
     // 2. メイン数値
     const textObj = g.append("text")
       .attr("x", width / 2)
-      // ★修正: 60%から65%に変更して少し下に移動
-      .attr("y", height * 0.65)
+      // 【変更】設定値（%）を使用
+      .attr("y", height * mainYPct)
       .attr("text-anchor", "middle")
       .attr("dy", "0.2em")
       .style("fill", "#ffffff")
@@ -345,7 +369,7 @@ looker.plugins.visualizations.add({
     if (subValueText) {
       g.append("text")
         .attr("x", width / 2)
-        .attr("y", height * 0.85)
+        .attr("y", height * 0.85) // サブ情報は今のところ固定（必要ならここも変数化可）
         .attr("text-anchor", "middle")
         .style("fill", "#cccccc")
         .style("font-size", subFontSize + "px")
