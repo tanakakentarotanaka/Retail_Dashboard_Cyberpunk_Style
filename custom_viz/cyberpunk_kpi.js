@@ -274,8 +274,8 @@ looker.plugins.visualizations.add({
     // 1. ラベル (複数行対応)
     const labelGroup = g.append("text")
       .attr("x", width / 2)
-      // 行が増えると下に伸びるため、開始位置を少し調整（30%の位置から描画）
-      .attr("y", height * 0.3)
+      // ★修正: 30%から20%に変更して上に移動
+      .attr("y", height * 0.2)
       .attr("text-anchor", "middle")
       .style("fill", mainColor)
       .style("opacity", 0.8)
@@ -315,7 +315,8 @@ looker.plugins.visualizations.add({
     // 2. メイン数値
     const textObj = g.append("text")
       .attr("x", width / 2)
-      .attr("y", height * 0.6)
+      // ★修正: 60%から65%に変更して少し下に移動
+      .attr("y", height * 0.65)
       .attr("text-anchor", "middle")
       .attr("dy", "0.2em")
       .style("fill", "#ffffff")
